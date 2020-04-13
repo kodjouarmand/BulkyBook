@@ -36,9 +36,7 @@ namespace BulkyBook.Areas.Customer.Controllers
             var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
             if (claim != null)
             {
-                var count = _unitOfWork.ShoppingCart
-                    .GetAll(c => c.ApplicationUserId == claim.Value)
-                    .ToList().Count();
+                var count = _unitOfWork.ShoppingCart.GetAll(c => c.ApplicationUserId == claim.Value).ToList().Count();
 
                 HttpContext.Session.SetInt32(SD.ssShoppingCart, count);
             }
@@ -49,8 +47,7 @@ namespace BulkyBook.Areas.Customer.Controllers
 
         public IActionResult Details(int id)
         {
-            var productFromDb = _unitOfWork.Product.
-                        GetFirstOrDefault(u => u.Id == id, includeProperties: "Category,CoverType");
+            var productFromDb = _unitOfWork.Product.GetFirstOrDefault(u => u.Id == id, includeProperties: "Category,CoverType");
             ShoppingCart cartObj = new ShoppingCart()
             {
                 Product = productFromDb,
@@ -72,10 +69,8 @@ namespace BulkyBook.Areas.Customer.Controllers
                 var claim = claimsIdentity.FindFirst(ClaimTypes.NameIdentifier);
                 CartObject.ApplicationUserId = claim.Value;
 
-                ShoppingCart cartFromDb = _unitOfWork.ShoppingCart.GetFirstOrDefault(
-                    u => u.ApplicationUserId == CartObject.ApplicationUserId && u.ProductId == CartObject.ProductId
-                    , includeProperties: "Product"
-                    );
+                ShoppingCart cartFromDb = _unitOfWork.ShoppingCart.GetFirstOrDefault(u => u.ApplicationUserId == CartObject.ApplicationUserId && u.ProductId == CartObject.ProductId
+                                                                                        , includeProperties: "Product");
 
                 if (cartFromDb == null)
                 {
@@ -89,9 +84,7 @@ namespace BulkyBook.Areas.Customer.Controllers
                 }
                 _unitOfWork.Save();
 
-                var count = _unitOfWork.ShoppingCart
-                    .GetAll(c => c.ApplicationUserId == CartObject.ApplicationUserId)
-                    .ToList().Count();
+                var count = _unitOfWork.ShoppingCart.GetAll(c => c.ApplicationUserId == CartObject.ApplicationUserId).ToList().Count();
 
                 //HttpContext.Session.SetObject(SD.ssShoppingCart, CartObject);
                 HttpContext.Session.SetInt32(SD.ssShoppingCart, count);
@@ -100,8 +93,7 @@ namespace BulkyBook.Areas.Customer.Controllers
             }
             else
             {
-                var productFromDb = _unitOfWork.Product.
-                        GetFirstOrDefault(u => u.Id == CartObject.ProductId, includeProperties: "Category,CoverType");
+                var productFromDb = _unitOfWork.Product.GetFirstOrDefault(u => u.Id == CartObject.ProductId, includeProperties: "Category,CoverType");
                 ShoppingCart cartObj = new ShoppingCart()
                 {
                     Product = productFromDb,
