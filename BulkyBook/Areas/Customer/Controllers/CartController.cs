@@ -14,7 +14,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using Stripe;
+using Twilio;
+using Twilio.Rest.Api.V2010.Account;
 
 namespace BulkyBook.Areas.Customer.Controllers
 {
@@ -23,16 +26,20 @@ namespace BulkyBook.Areas.Customer.Controllers
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IEmailSender _emailSender;
+
+        private TwilioSettings _twilioOptions { get; set; }
         private readonly UserManager<IdentityUser> _userManager;
 
         [BindProperty]
         public ShoppingCartVM ShoppingCartVM { get; set; }
 
-        public CartController(IUnitOfWork unitOfWork, IEmailSender emailSender, UserManager<IdentityUser> userManager)
+        public CartController(IUnitOfWork unitOfWork, IEmailSender emailSender,
+            UserManager<IdentityUser> userManager, IOptions<TwilioSettings> twilionOptions)
         {
             _unitOfWork = unitOfWork;
             _emailSender = emailSender;
             _userManager = userManager;
+            _twilioOptions = twilionOptions.Value;
         }
 
         public IActionResult Index()
@@ -55,13 +62,10 @@ namespace BulkyBook.Areas.Customer.Controllers
                 list.Price = SD.GetPriceBasedOnQuantity(list.Count, list.Product.Price,
                                                     list.Product.Price50, list.Product.Price100);
                 ShoppingCartVM.OrderHeader.OrderTotal += (list.Price * list.Count);
-                if (list.Product.Description != null)
+                list.Product.Description = SD.ConvertToRawHtml(list.Product.Description);
+                if (list.Product.Description.Length > 100)
                 {
-                    list.Product.Description = SD.ConvertToRawHtml(list.Product.Description);
-                    if (list.Product.Description.Length > 100)
-                    {
-                        list.Product.Description = list.Product.Description.Substring(0, 99) + "...";
-                    }
+                    list.Product.Description = list.Product.Description.Substring(0, 99) + "...";
                 }
             }
 
@@ -243,13 +247,13 @@ namespace BulkyBook.Areas.Customer.Controllers
                 var service = new ChargeService();
                 Charge charge = service.Create(options);
 
-                if (charge.BalanceTransactionId == null)
+                if (charge.Id == null)
                 {
                     ShoppingCartVM.OrderHeader.PaymentStatus = SD.PaymentStatusRejected;
                 }
                 else
                 {
-                    ShoppingCartVM.OrderHeader.TransactionId = charge.BalanceTransactionId;
+                    ShoppingCartVM.OrderHeader.TransactionId = charge.Id;
                 }
                 if (charge.Status.ToLower() == "succeeded")
                 {
@@ -267,6 +271,21 @@ namespace BulkyBook.Areas.Customer.Controllers
 
         public IActionResult OrderConfirmation(int id)
         {
+            OrderHeader orderHeader = _unitOfWork.OrderHeader.GetFirstOrDefault(u => u.Id == id);
+            TwilioClient.Init(_twilioOptions.AccountSid, _twilioOptions.AuthToken);
+            try
+            {
+                var message = MessageResource.Create(
+                    body: "Order Placed on Bulky Book. Your Order ID:" + id,
+                    from: new Twilio.Types.PhoneNumber(_twilioOptions.PhoneNumber),
+                    to: new Twilio.Types.PhoneNumber(orderHeader.PhoneNumber)
+                    );
+            }
+            catch (Exception ex)
+            {
+
+            }
+
             return View(id);
         }
     }
